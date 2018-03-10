@@ -8,6 +8,8 @@ public class Pathfinder : MonoBehaviour
     Dictionary<Vector2Int, Waypoint> grid = new Dictionary<Vector2Int, Waypoint>();
     Queue<Waypoint> queue = new Queue<Waypoint>();
     private bool isRunning = true;
+    private Waypoint searchCenter;
+    private List<Waypoint> path = new List<Waypoint>();
 
     [SerializeField] Waypoint startPoint, endPoint;
 
@@ -19,42 +21,57 @@ public class Pathfinder : MonoBehaviour
         Vector2Int.down
     };
 
-    // Use this for initialization
-    void Start () {
+    public List<Waypoint> GetPath()
+    {
         LoadBlocks();
-        startPoint.SetTopColor(Color.green);
-        endPoint.SetTopColor(Color.red);
-
-        Pathfind();
-        //ExploreNeighbors(startPoint);
+        ColorStartAndEndBlocks();
+        BreadthFirstSearch();
+        CreatePath();
+        return path;
     }
 
-    private void Pathfind()
+    private void CreatePath()
+    {
+        path.Add(endPoint);
+
+        Waypoint previous = endPoint.exploredFrom;
+        while(previous != startPoint)
+        {
+            path.Add(previous);
+            previous = previous.exploredFrom;
+        }
+
+        path.Add(startPoint);
+        path.Reverse();
+    }
+
+    private void ColorStartAndEndBlocks()
+    {
+        startPoint.SetTopColor(Color.green);
+        endPoint.SetTopColor(Color.red);
+    }
+
+    private void BreadthFirstSearch()
     {
         queue.Enqueue(startPoint);
 
-        Waypoint endFound;
-
         while(queue.Count > 0 && isRunning)
         {
-            var searchCenter = queue.Dequeue();
-            print("Searching from" + searchCenter);
+            searchCenter = queue.Dequeue();
+            searchCenter.isExplored = true;
 
-            HaltIfEndFound(searchCenter);
-
-            
+            HaltIfEndFound();
+            ExploreNeighbors();
         }
 
-        print("Finished pathfinding?");
 
 
     }
 
-    private void HaltIfEndFound(Waypoint searchCenter)
+    private void HaltIfEndFound()
     {
         if (searchCenter == endPoint)
         {
-            print("Searching from end node, therefore stopping");
             isRunning = false;
         }
     }
@@ -77,27 +94,33 @@ public class Pathfinder : MonoBehaviour
         }
     }
 
-    private void ExploreNeighbors(Waypoint waypoint)
+    private void ExploreNeighbors()
     {
-        foreach(Vector2Int direction in directions)
+        if (isRunning)
         {
-            Vector2Int possiblePosition = waypoint.GetGridPos() + direction;
-            try
+            foreach (Vector2Int direction in directions)
             {
-                grid[possiblePosition].SetTopColor(Color.blue);
-                print("Explorable block exists at " + possiblePosition);
+                Vector2Int possiblePosition = searchCenter.GetGridPos() + direction;
+                if(grid.ContainsKey(possiblePosition))
+                {
+                    QueueNewNeighbor(possiblePosition);
+                }
             }
-            catch
-            {
-                print("Explorable block does not exist at " + possiblePosition);
-            }
-
-
         }
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    private void QueueNewNeighbor(Vector2Int neighborCoordinates)
+    {
+        Waypoint neighbor = grid[neighborCoordinates];
+        if (!neighbor.isExplored || queue.Contains(neighbor))
+        {
+            queue.Enqueue(neighbor);
+            neighbor.exploredFrom = searchCenter;
+        }
+    }
+
+    // Update is called once per frame
+    void Update () {
 		
 	}
 }
